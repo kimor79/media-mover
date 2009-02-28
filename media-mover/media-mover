@@ -1,0 +1,249 @@
+#!/usr/bin/perl -w
+#
+# This script is meant to move newly downloaded videos
+# into a directory (and structure) to be read by plex.
+#
+# It requires these modules in addition to what normally
+# comes with perl:
+#  LockFile::Simple
+#  LWP::Simple
+
+use strict;
+use File::Basename;
+#use File::Copy; # File::Copy's move() doesn't support moving directories
+use LockFile::Simple qw(trylock unlock);;
+use LWP::Simple;
+
+# The directory in which to look for new files
+my $download_dir = '/Volumes/lacie/BitTorrent/Completed';
+
+# The directory in which to place TV shows
+my $tv_dir = '/Volumes/lacie/Media/TV Shows';
+
+# The directory in which to place movies
+my $movie_dir = '/Volumes/lacie/Media/Movies';
+
+# Set to 1 to update plex, 0 to not
+my $update_plex  = 1;
+
+#####################
+#####################
+#####################
+
+##
+## Variables
+##
+
+my $DH_HANDLE;
+my $PLEX_NEEDS_UPDATE = 0;
+my $PROGNAME = basename($0);
+
+my $LOCK_FILE = '/tmp/' . $PROGNAME;
+
+##
+## Subroutines
+##
+
+sub logger {
+# wrapper to logger(1)
+
+	my $message = shift;
+
+	system('logger', '-t', $PROGNAME, $message);
+}
+
+sub move {
+# Wrapper to system(mv) since File::Copy can't move directories
+
+	my ($src, $dst) = @_;
+
+	system('mv', $src, $dst) == 0 && return 1;
+
+	return 0;
+}
+
+sub wait_for_size {
+# Check to see if file is still being copied, and if so,
+# wait for it to stop growing
+
+	my $input = shift;
+	my @files;
+
+	$input = $download_dir . '/' . $input;
+
+	if(-d $input) {
+		my $dh_input;
+		opendir($dh_input, $input) || do {
+			logger("Unable to open $input: $!");
+			return 0;
+		};
+
+		while(my $item = readdir($dh_input)) {
+			next if($item =~ m/^\.{1,2}$/);
+
+			$item = $input . '/' . $item;
+
+			if(-f $item) {
+				push(@files, $item);
+			}
+		}
+
+		closedir($dh_input);
+	} elsif (-f $input) {
+		push(@files, $input);
+	}
+
+	foreach my $file (@files) {
+		my $old = 0;
+		my $new = 1;
+		while($old ne $new) {
+			$old = (stat($file))[7];
+			sleep(5);
+			$new = (stat($file))[7];
+		}
+	}
+
+	return 1;
+}
+
+sub determine_type {
+# Determine whether file is a TV show or movie
+
+	my $file = shift;
+
+	# TV shows
+
+	if($file =~ m/^(.*)\.S(\d{1,2})E(\d{1,2}.*)$/i) {
+		my $show = $1;
+		my $season = $2;
+		my $episode = $3;
+
+		do_tv($show, $season, $episode, $file);
+		return;
+	}
+
+	if($file =~ m/^(.*)\.(\d{1,2})x(\d{1,2}.*)$/i) {
+		my $show = $1;
+		my $season = $2;
+		my $episode = $3;
+
+		do_tv($show, $season, $episode, $file);
+		return;
+	}
+
+	# Movies
+
+	if($file =~ m/-aXXo/i) {
+		do_movie($file);
+		return;
+	}
+}
+
+sub do_movie {
+# Move the file to the movie directory
+
+	my $file = shift;
+	$file =  $download_dir . '/' . $file;
+
+	move($file, $movie_dir) && do {
+		$PLEX_NEEDS_UPDATE = 1;
+		return 1;
+	};
+
+	logger("Unable to move movie $file: $!");
+	return 0;
+}
+
+sub do_tv {
+# Move the file to the TV show directory
+
+	my ($show, $season, $episode, $file) = @_;
+
+	# Convert spaces to .
+	$show =~ s/\s/./g;
+	$episode =~ s/\s/./g;
+
+	# Convert everything to lowercase then
+	# the first letter of each word to uppercase
+	$show =~ s/(\w)/\L$1/g;
+	$show =~ s/^(\w)/\U$1/;
+	$show =~ s/([^a-zA-Z])(\w)/$1\U$2/g;
+
+	# Get rid of any leading 0 in the season directory name
+	my $season_dir = 'Season ' . $season;
+	$season_dir =~ s/ 0/ /;
+
+	my $path = $tv_dir . '/' . $show;
+	if(! -d $path) {
+		mkdir($path) || do {
+			logger("Unable to make $path: $!");
+			return 0;
+		};
+	}
+
+	$path .= '/' . $season_dir;
+	if(! -d $path) {
+		mkdir($path) || do {
+			logger("Unable to make $path: $!");
+			return 0;
+		};
+	}
+
+	# Add a leading 0 to season/episode of filename
+
+	if($season =~ m/^\d$/) {
+		$season = '0' . $season;
+	}
+
+	if($episode =~ m/^\d\D/) {
+		$episode = '0' . $episode;
+	}
+
+	$path .= '/' . $show . '.S' . $season . 'E' . $episode;
+
+	$file =~ s/\/$//;
+	$file =  $download_dir . '/' . $file;
+	move($file, $path) && do {
+		$PLEX_NEEDS_UPDATE = 1;
+		return 1;
+	};
+
+	logger("Unable to move TV show $file: $!");
+	return 0;
+}
+
+sub do_plex {
+# Update plex if $update_plex is 1
+
+	if(($update_plex) && ($PLEX_NEEDS_UPDATE)) {
+		get('http://127.0.0.1:3000/xbmcCmds/xbmcHttp?command=ExecBuiltIn&parameter=XBMC.updatelibrary(video)');
+	}
+}
+
+##
+## Main
+##
+
+trylock($LOCK_FILE) || do {
+	logger("Already running");
+	exit(1);
+};
+
+opendir($DH_HANDLE, $download_dir) || do {
+	logger("Unable to open $download_dir: $!");
+	exit(1);
+};
+
+while(my $item = readdir($DH_HANDLE)) {
+	next if($item =~ m/^\.{1,2}$/);
+
+	next unless(wait_for_size($item));
+	determine_type($item);
+}
+
+closedir($DH_HANDLE);
+
+do_plex();
+
+unlock($LOCK_FILE);
+exit(0);
