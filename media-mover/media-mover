@@ -113,6 +113,18 @@ sub determine_type {
 
 	# TV shows
 
+	# Hack for "Randy Jackson Presents America's Best Dance Crew"
+	# since the torrents usually aren't named consistently
+
+	if($file =~ m/.*best\.dance\.crew\.s(\d{1,2})e(\d1,2.*)$/i) {
+		my $show = "Randy.Jackson.Presents:.America's.Best.Dance.Crew";
+		my $season = $1;
+		my $episode = $2;
+
+		do_tv($show, $season, $episode, $file);
+		return;
+	}
+
 	if($file =~ m/^(.*)\.S(\d{1,2})E(\d{1,2}.*)$/i) {
 		my $show = $1;
 		my $season = $2;
