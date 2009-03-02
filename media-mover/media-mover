@@ -113,19 +113,8 @@ sub determine_type {
 
 	# TV shows
 
-	# Hack for "Randy Jackson Presents America's Best Dance Crew"
-	# since the torrents usually aren't named consistently
-
-	if($file =~ m/.*best\.dance\.crew\.s(\d{1,2})e(\d1,2.*)$/i) {
-		my $show = "Randy.Jackson.Presents:.America's.Best.Dance.Crew";
-		my $season = $1;
-		my $episode = $2;
-
-		do_tv($show, $season, $episode, $file);
-		return;
-	}
-
 	if($file =~ m/^(.*)\.S(\d{1,2})E(\d{1,2}.*)$/i) {
+	# Match: <show name>.S<season number>E<episoder number>
 		my $show = $1;
 		my $season = $2;
 		my $episode = $3;
@@ -135,6 +124,7 @@ sub determine_type {
 	}
 
 	if($file =~ m/^(.*)\.(\d{1,2})x(\d{1,2}.*)$/i) {
+	# Match: <show name>.<season number>x<episoder number>
 		my $show = $1;
 		my $season = $2;
 		my $episode = $3;
@@ -170,6 +160,12 @@ sub do_tv {
 # Move the file to the TV show directory
 
 	my ($show, $season, $episode, $file) = @_;
+
+	if($show =~ m/best\.dance\.crew/i) {
+	# Hack for "Randy Jackson Presents America's Best Dance Crew"
+	# since the torrents usually aren't named consistently
+		$show = "Randy.Jackson.Presents:.America's.Best.Dance.Crew";
+	}
 
 	# Convert spaces to .
 	$show =~ s/\s/./g;
