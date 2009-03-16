@@ -181,6 +181,12 @@ sub do_tv {
 	my $season_dir = 'Season ' . $season;
 	$season_dir =~ s/ 0/ /;
 
+	# Uncomment if you want season directory names to have
+	# a leading 0
+	#if($season =~ m/^\d$/) {
+	#	$season_dir = 'Season 0' . $season;
+	#}
+
 	my $path = $tv_dir . '/' . $show;
 	if(! -d $path) {
 		mkdir($path) || do {
