@@ -26,6 +26,9 @@ my $movie_dir = '/Volumes/lacie/Media/Movies';
 # Set to 1 to update plex, 0 to not
 my $update_plex  = 1;
 
+# Set to 1 if you want leading zeroes in season numbers
+my season_leading_zero = 0;
+
 #####################
 #####################
 #####################
@@ -177,15 +180,18 @@ sub do_tv {
 	$show =~ s/^(\w)/\U$1/;
 	$show =~ s/([^a-zA-Z])(\w)/$1\U$2/g;
 
-	# Get rid of any leading 0 in the season directory name
-	my $season_dir = 'Season ' . $season;
-	$season_dir =~ s/ 0/ /;
+	# if season_leading_zero = 1 make sure you have leading 0 on 1 digit seasons, otherwise strip
+	if ($season_leading_zero) {
+		if ($season =~ /^\d$/) {
+			$season = '0' . $season;
+		}
+	} else {
+		if ($season =~ /^0(\d)$) {
+			$season = $1;
+		}
+	}
 
-	# Uncomment if you want season directory names to have
-	# a leading 0
-	#if($season_dir =~ m/ \d$/) {
-	#	$season_dir = 'Season 0' . $season;
-	#}
+	my $season_dir = 'Season ' . $season;
 
 	my $path = $tv_dir . '/' . $show;
 	if(! -d $path) {
