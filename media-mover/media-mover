@@ -183,7 +183,7 @@ sub do_tv {
 
 	# Uncomment if you want season directory names to have
 	# a leading 0
-	#if($season =~ m/^\d$/) {
+	#if($season_dir =~ m/ \d$/) {
 	#	$season_dir = 'Season 0' . $season;
 	#}
 
