@@ -27,7 +27,10 @@ my $movie_dir = '/Volumes/lacie/Media/Movies';
 my $update_plex  = 1;
 
 # Set to 1 if you want leading zeroes in season numbers
-my $season_leading_zero = 0;
+my $season_leading_zero_dirs = 0;
+
+# Set to 1 if you like spaces in the show name for directory names only
+my $spaces_in_show_dirs = 0;
 
 #####################
 #####################
@@ -179,9 +182,15 @@ sub do_tv {
 	$show =~ s/(\w)/\L$1/g;
 	$show =~ s/^(\w)/\U$1/;
 	$show =~ s/([^a-zA-Z])(\w)/$1\U$2/g;
+	
+	my $show_dir = $show;
+	# if spaces_in_show_dirs is 1, convert '.' to ' ' just for show directory
+	if ($spaces_in_show_dirs) {
+		$show_dir =~ s/\./ /g;
+	}
 
-	# if season_leading_zero = 1 make sure you have leading 0 on 1 digit seasons, otherwise strip
-	if ($season_leading_zero) {
+	# if season_leading_zero_dirs = 1 make sure you have leading 0 on 1 digit season dirs, otherwise strip
+	if ($season_leading_zero_dirs) {
 		if ($season =~ /^\d$/) {
 			$season = '0' . $season;
 		}
@@ -193,7 +202,7 @@ sub do_tv {
 
 	my $season_dir = 'Season ' . $season;
 
-	my $path = $tv_dir . '/' . $show;
+	my $path = $tv_dir . '/' . $show_dir;
 	if(! -d $path) {
 		mkdir($path) || do {
 			logger("Unable to make $path: $!");
