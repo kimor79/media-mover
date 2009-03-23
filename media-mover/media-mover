@@ -27,7 +27,7 @@ my $movie_dir = '/Volumes/lacie/Media/Movies';
 my $update_plex  = 1;
 
 # Set to 1 if you want leading zeroes in season numbers
-my season_leading_zero = 0;
+my $season_leading_zero = 0;
 
 #####################
 #####################
