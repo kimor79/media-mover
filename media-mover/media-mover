@@ -119,7 +119,7 @@ sub determine_type {
 
 	# TV shows
 
-	if($file =~ m/^(.*)\.S(\d{1,2})E(\d{1,2}.*)$/i) {
+	if($file =~ m/^(.*)(?:\s|\.)S(\d{1,2})E(\d{1,2}.*)$/i) {
 	# Match: <show name>.S<season number>E<episoder number>
 		my $show = $1;
 		my $season = $2;
